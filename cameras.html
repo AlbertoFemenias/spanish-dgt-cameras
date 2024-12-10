@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Spain DGT Cameras</title>
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; 
+  }
+  #map {
+    width: 100%;
+    height: 100%;
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // Initialize the map
+    const map = L.map('map').setView([40.4168, -3.7038], 6); // center on Spain
+
+    // Add OSM tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // Fetch camera data
+    fetch('https://api.cors.lol/?url=https://www.dgt.es/.content/.assets/json/camaras.json')
+      .then(response => response.json())
+      .then(data => {
+        data.camaras.forEach(camera => {
+          const { latitud, longitud, imagen } = camera;
+          if (!latitud || !longitud) return; // skip if coords missing
+
+          const lat = parseFloat(latitud);
+          const lng = parseFloat(longitud);
+          if (isNaN(lat) || isNaN(lng)) return; // skip if invalid coords
+
+          const marker = L.marker([lat, lng]).addTo(map);
+          const popupContent = `<img src="${imagen}" alt="Camera" style="max-width:200px; max-height:200px;"/>`;
+          marker.bindPopup(popupContent);
+        });
+      })
+      .catch(error => console.error('Error fetching camera data:', error));
+  });
+</script>
+</body>
+</html>
