@@ -1,58 +1,172 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Spain DGT Cameras</title>
-<!-- Leaflet CSS -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spain DGT Cameras</title>
+  <script src="camerasBackup.js"></script>
+  <script src="provinceMapping.js"></script>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
 
-<style>
-  html, body {
-    margin: 0; padding: 0; height: 100%; 
-  }
-  #map {
-    width: 100%;
-    height: 100%;
-  }
-</style>
+  <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+
+    #loading {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: white;
+      padding: 10px;
+      z-index: 1000;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+
+    /* Example loading style, you can use a GIF if you prefer */
+    #loading::after {
+      content: "Loading cameras...";
+    }
+
+    .info-control {
+      background: white;
+      padding: 5px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .camera-popup {
+      width: 300px;
+      position: relative;
+    }
+
+    .camera-popup img {
+      width: 100%;
+      height: auto;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .camera-popup .close-btn {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      cursor: pointer;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      line-height: 18px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .camera-details {
+      font-size: 14px;
+    }
+  </style>
 </head>
+
 <body>
-<div id="map"></div>
+  <div id="map"></div>
+  <div id="loading"></div>
 
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script>
+    // In a real scenario, set your environment variable or configuration here.
+    // For example, you might define: window.ENV = { CAMERAS_URL: "https://your-api.com/cameras.json" };
+    // For demonstration, we'll just fallback to a known URL if ENV is not defined:
+    const cameraUrl = (window.ENV && window.ENV.CAMERAS_URL) || 'https://api.cors.lol/?url=https://www.dgt.es/.content/.assets/json/camaras.json';
 
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    // Initialize the map
-    const map = L.map('map').setView([40.4168, -3.7038], 6); // center on Spain
+    document.addEventListener('DOMContentLoaded', () => {
+      // Initialize the map
+      const map = L.map('map').setView([40.4168, -3.7038], 6); // center on Spain
 
-    // Add OSM tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
-    }).addTo(map);
+      // Add OSM tiles
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
+      }).addTo(map);
 
-    // Fetch camera data
-    fetch('https://api.cors.lol/?url=https://www.dgt.es/.content/.assets/json/camaras.json')
-      .then(response => response.json())
-      .then(data => {
-        data.camaras.forEach(camera => {
-          const { latitud, longitud, imagen } = camera;
-          if (!latitud || !longitud) return; // skip if coords missing
+      // Add a corner control with links to source code and documentation
+      const infoControl = L.control({ position: 'topright' });
+      infoControl.onAdd = () => {
+        const div = L.DomUtil.create('div', 'info-control');
+        div.innerHTML = `<a href="https://github.com/your-repo" target="_blank">Source Code</a> | <a href="https://docs.example.com" target="_blank">Documentation</a>`;
+        return div;
+      };
+      infoControl.addTo(map);
 
-          const lat = parseFloat(latitud);
-          const lng = parseFloat(longitud);
-          if (isNaN(lat) || isNaN(lng)) return; // skip if invalid coords
+      // Function to load cameras
+      function loadCameras(url, fallbackUrl) {
+        return fetch(url)
+          .then(response => {
+            if (!response.ok) throw new Error("Network response was not ok");
+            return response.json();
+          })
+          .catch(() => {
+            return camerasBackup; // Use the backup stored in camerasBackup.js if the cors or the dgt endpoint fail.
+          });
+      }
 
-          const marker = L.marker([lat, lng]).addTo(map);
-          const popupContent = `<img src="${imagen}" alt="Camera" style="max-width:200px; max-height:200px;"/>`;
-          marker.bindPopup(popupContent);
+      // Load cameras
+      loadCameras(cameraUrl, 'cameras_backup.json')
+        .then(data => {
+          data.camaras.forEach(camera => {
+            const { latitud, longitud, imagen, carretera, provincia } = camera;
+            if (!latitud || !longitud) return; // skip if coords missing
+
+            const lat = parseFloat(latitud);
+            const lng = parseFloat(longitud);
+            if (isNaN(lat) || isNaN(lng)) return; // skip if invalid coords
+
+            const marker = L.marker([lat, lng]).addTo(map);
+
+            // Create popup content
+            const popupContent = `
+          <div class="camera-popup">
+            <img src="${imagen}" alt="Camera Image"/>
+            <div class="camera-details">
+              <p>
+                <a href="${imagen}" target="_blank" class="open-image-btn">Open image in new tab ⇗</a><br>
+                <strong>Coordinates:</strong> ${latitud}, ${longitud}<br>
+                <strong>Road:</strong> ${carretera}<br>
+                <strong>Province:</strong> ${provinceMapping[provincia] || 'Unknown'}
+              </p>
+            </div>
+          </div>
+        `;
+
+            marker.bindPopup(popupContent);
+          });
+        })
+        .catch(error => {
+          console.error('Error fetching camera data:', error);
+        })
+        .finally(() => {
+          // Remove the loading indicator once data is loaded (or attempt finished)
+          const loadingDiv = document.getElementById('loading');
+          if (loadingDiv) {
+            loadingDiv.style.display = 'none';
+          }
         });
-      })
-      .catch(error => console.error('Error fetching camera data:', error));
-  });
-</script>
+    });
+  </script>
 </body>
+
 </html>

@@ -1,4 +1,5 @@
-{
+// This is the same json response that https://www.dgt.es/.content/.assets/json/camaras.json returns
+const camerasBackup = {
     "camaras": [
         {
             "fecha": "2023/06/12 13:42:39",
