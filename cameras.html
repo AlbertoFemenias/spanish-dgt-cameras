@@ -1,100 +1,93 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Spain DGT Cameras</title>
   <script src="camerasBackup.js"></script>
   <script src="provinceMapping.js"></script>
   <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
 
+  <!-- Using color markers from https://github.com/pointhi/leaflet-color-markers -->
   <style>
-    html,
-    body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-    }
-
-    #map {
-      width: 100%;
-      height: 100%;
-    }
-
+    html, body { margin: 0; padding: 0; height: 100%; }
+    #map { width: 100%; height: 100%; }
     #loading {
-      position: absolute;
-      top: 10px;
-      left: 10px;
+      position: absolute; top: 10px; left: 10px; background: white;
+      padding: 10px; z-index: 1000; border: 1px solid #ccc; border-radius: 4px; font-weight: bold;
+    }
+    #loading::after { content: "Loading cameras..."; }
+    .info-control {
+      background: white; padding: 5px; border-radius: 4px; font-size: 14px;
+    }
+    .camera-popup {
+      width: 300px; position: relative;
+    }
+    .camera-popup img {
+      width: 100%; height: auto; display: block; margin-bottom: 10px;
+    }
+    .camera-popup .close-btn {
+      position: absolute; top: 5px; right: 5px; cursor: pointer; background: #fff;
+      border: 1px solid #ccc; border-radius: 50%; width: 20px; height: 20px; line-height: 18px;
+      text-align: center; font-weight: bold; font-size: 14px;
+    }
+    .camera-details { font-size: 14px; }
+
+    /* Legend styling */
+    .legend {
       background: white;
       padding: 10px;
-      z-index: 1000;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-weight: bold;
-    }
-
-    /* Example loading style, you can use a GIF if you prefer */
-    #loading::after {
-      content: "Loading cameras...";
-    }
-
-    .info-control {
-      background: white;
-      padding: 5px;
-      border-radius: 4px;
+      line-height: 1.5;
+      border-radius: 5px;
       font-size: 14px;
     }
-
-    .camera-popup {
-      width: 300px;
-      position: relative;
-    }
-
-    .camera-popup img {
-      width: 100%;
-      height: auto;
-      display: block;
-      margin-bottom: 10px;
-    }
-
-    .camera-popup .close-btn {
-      position: absolute;
-      top: 5px;
-      right: 5px;
-      cursor: pointer;
-      background: #fff;
-      border: 1px solid #ccc;
-      border-radius: 50%;
-      width: 20px;
-      height: 20px;
-      line-height: 18px;
-      text-align: center;
-      font-weight: bold;
-      font-size: 14px;
-    }
-
-    .camera-details {
-      font-size: 14px;
+    .legend img {
+      vertical-align: middle;
+      margin-right: 5px;
     }
   </style>
 </head>
-
 <body>
   <div id="map"></div>
   <div id="loading"></div>
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
   <script>
-    // In a real scenario, set your environment variable or configuration here.
-    // For example, you might define: window.ENV = { CAMERAS_URL: "https://your-api.com/cameras.json" };
-    // For demonstration, we'll just fallback to a known URL if ENV is not defined:
-    const cameraUrl = (window.ENV && window.ENV.CAMERAS_URL) || 'https://api.cors.lol/?url=https://www.dgt.es/.content/.assets/json/camaras.json';
+    const cameraUrl = 'https://api.cors.lol/?url=https://www.dgt.es/.content/.assets/json/camaras.json';
+    const speedCamerasUrl = 'https://api.cors.lol/?url=https://infocar.dgt.es/datex2/dgt/PredefinedLocationsPublication/radares/content.xml';
+
+    // Marker icons:
+    // Default (blue) for main cameras:
+    const blueIcon = L.icon({
+      iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/images/marker-icon.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/images/marker-shadow.png'
+    });
+
+    // Green for CinemometrosVelocidadMedia
+    const greenIcon = L.icon({
+      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/images/marker-shadow.png'
+    });
+
+    // Red for CabinasCinemometro
+    const redIcon = L.icon({
+      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/images/marker-shadow.png'
+    });
 
     document.addEventListener('DOMContentLoaded', () => {
-      // Initialize the map
       const map = L.map('map').setView([40.4168, -3.7038], 6); // center on Spain
 
       // Add OSM tiles
@@ -103,7 +96,7 @@
         attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
       }).addTo(map);
 
-      // Add a corner control with links to source code and documentation
+      // Info control
       const infoControl = L.control({ position: 'topright' });
       infoControl.onAdd = () => {
         const div = L.DomUtil.create('div', 'info-control');
@@ -112,20 +105,33 @@
       };
       infoControl.addTo(map);
 
-      // Function to load cameras
-      function loadCameras(url, fallbackUrl) {
+      // Legend control
+      const legendControl = L.control({ position: 'bottomleft' });
+      legendControl.onAdd = () => {
+        const div = L.DomUtil.create('div', 'legend');
+        div.innerHTML = `
+          <div><img src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/images/marker-icon.png" height="25" /> Regular Traffic Camera</div>
+          <div><img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png" height="25" /> Average Speed Camera (CinemometrosVelocidadMedia)</div>
+          <div><img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png" height="25" /> Fixed Speed Camera (CabinasCinemometro)</div>
+        `;
+        return div;
+      };
+      legendControl.addTo(map);
+
+      function loadCameras(url) {
         return fetch(url)
           .then(response => {
             if (!response.ok) throw new Error("Network response was not ok");
             return response.json();
           })
           .catch(() => {
-            return camerasBackup; // Use the backup stored in camerasBackup.js if the cors or the dgt endpoint fail.
+            // fallback to local backup
+            return camerasBackup;
           });
       }
 
-      // Load cameras
-      loadCameras(cameraUrl, 'cameras_backup.json')
+      // Main cameras
+      loadCameras(cameraUrl)
         .then(data => {
           const cameras = data.camaras;
           cameras.forEach((camera, index) => {
@@ -136,9 +142,7 @@
             const lng = parseFloat(longitud);
             if (isNaN(lat) || isNaN(lng)) return; // skip if invalid coords
 
-            const marker = L.marker([lat, lng]).addTo(map);
-
-            // Create popup content
+            const marker = L.marker([lat, lng], { icon: blueIcon }).addTo(map);
             const popupContent = `
               <div class="camera-popup">
                 <img src="${imagen}" alt="Camera Image"/>
@@ -152,29 +156,186 @@
                 </div>
               </div>
             `;
-
             marker.bindPopup(popupContent);
 
-            // Check if this is the last camera to process
+            // If this is the last camera, load speed cameras afterwards
             if (index === cameras.length - 1) {
-              // Remove the loading indicator once all markers are added
-              const loadingDiv = document.getElementById('loading');
-              if (loadingDiv) {
-                loadingDiv.style.display = 'none';
-              }
+              loadSpeedCameras()
+                .finally(() => {
+                  const loadingDiv = document.getElementById('loading');
+                  if (loadingDiv) loadingDiv.style.display = 'none';
+                });
             }
           });
         })
         .catch(error => {
           console.error('Error fetching camera data:', error);
           const loadingDiv = document.getElementById('loading');
-          if (loadingDiv) {
-            loadingDiv.style.display = 'none'; // Ensure loading message is also removed on error
-          }
+          if (loadingDiv) loadingDiv.style.display = 'none';
         });
-  
+
+      // Extract helper function for reference point details
+      function extractReferenceDetails(refEl) {
+        let administrativeArea = '', roadName = '', predefinedLocationName = '';
+        // administrativeArea
+        const adminAreaEl = refEl.getElementsByTagName("_0:administrativeArea")[0];
+        if (adminAreaEl && adminAreaEl.getElementsByTagName("_0:value")[0]) {
+          administrativeArea = adminAreaEl.getElementsByTagName("_0:value")[0].textContent.trim();
+        }
+        // roadName
+        const roadNameEl = refEl.getElementsByTagName("_0:roadName")[0];
+        if (roadNameEl && roadNameEl.getElementsByTagName("_0:value")[0]) {
+          roadName = roadNameEl.getElementsByTagName("_0:value")[0].textContent.trim();
+        }
+        return { administrativeArea, roadName };
+      }
+
+      // Load speed cameras from XML
+      function loadSpeedCameras() {
+        return fetch(speedCamerasUrl)
+          .then(response => {
+            if (!response.ok) throw new Error("Failed to fetch speed cameras");
+            return response.text();
+          })
+          .then(xmlStr => {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlStr, "application/xml");
+
+            const locationSets = xmlDoc.getElementsByTagName("_0:predefinedLocationSet");
+            for (let i = 0; i < locationSets.length; i++) {
+              const setEl = locationSets[i];
+
+              // Get the name of the set
+              const setNameEl = setEl.getElementsByTagName("_0:predefinedLocationSetName")[0];
+              if (!setNameEl) continue;
+              const setNameValEl = setNameEl.getElementsByTagName("_0:value")[0];
+              if (!setNameValEl) continue;
+              const setName = setNameValEl.textContent.trim();
+
+              const predefinedLocations = setEl.getElementsByTagName("_0:predefinedLocation");
+
+              if (setName === "CinemometrosVelocidadMedia") {
+                // Average speed cameras (linear)
+                for (let j = 0; j < predefinedLocations.length; j++) {
+                  const pl = predefinedLocations[j];
+                  const plNameEl = pl.getElementsByTagName("_0:predefinedLocationName")[0];
+                  let plName = "Average Speed Camera";
+                  if (plNameEl) {
+                    const valEl = plNameEl.getElementsByTagName("_0:value")[0];
+                    if (valEl) plName = valEl.textContent.trim();
+                  }
+
+                  const linearEl = pl.getElementsByTagName("_0:predefinedLocation")[0];
+                  if (!linearEl) continue;
+
+                  // Extract from/to coordinates
+                  const tpegLinearLocation = linearEl.getElementsByTagName("_0:tpeglinearLocation")[0];
+                  if (!tpegLinearLocation) continue;
+
+                  const fromEl = tpegLinearLocation.getElementsByTagName("_0:from")[0];
+                  const toEl = tpegLinearLocation.getElementsByTagName("_0:to")[0];
+                  if (!fromEl || !toEl) continue;
+
+                  const fromLatEl = fromEl.getElementsByTagName("_0:latitude")[0];
+                  const fromLonEl = fromEl.getElementsByTagName("_0:longitude")[0];
+                  const toLatEl = toEl.getElementsByTagName("_0:latitude")[0];
+                  const toLonEl = toEl.getElementsByTagName("_0:longitude")[0];
+
+                  if (!fromLatEl || !fromLonEl || !toLatEl || !toLonEl) continue;
+
+                  const fromLat = parseFloat(fromLatEl.textContent.trim());
+                  const fromLon = parseFloat(fromLonEl.textContent.trim());
+                  const toLat = parseFloat(toLatEl.textContent.trim());
+                  const toLon = parseFloat(toLonEl.textContent.trim());
+
+                  if (isNaN(fromLat) || isNaN(fromLon) || isNaN(toLat) || isNaN(toLon)) continue;
+
+                  // Extract administrative area, road name from referencePointLinear
+                  const referencePointLinear = linearEl.getElementsByTagName("_0:referencePointLinear")[0];
+                  let administrativeArea = '', roadName = '';
+                  if (referencePointLinear) {
+                    const primaryLoc = referencePointLinear.getElementsByTagName("_0:referencePointPrimaryLocation")[0];
+                    if (primaryLoc) {
+                      const refPoint = primaryLoc.getElementsByTagName("_0:referencePoint")[0];
+                      if (refPoint) {
+                        const details = extractReferenceDetails(refPoint);
+                        administrativeArea = details.administrativeArea;
+                        roadName = details.roadName;
+                      }
+                    }
+                  }
+
+                  // Create popups
+                  const popupContentFrom = `<strong>${plName}</strong><br>
+                                            <strong>Administrative Area:</strong> ${administrativeArea}<br>
+                                            <strong>Road:</strong> ${roadName}<br>
+                                            <strong>Type:</strong> Average Speed (Start)`;
+
+                  const popupContentTo = `<strong>${plName}</strong><br>
+                                          <strong>Administrative Area:</strong> ${administrativeArea}<br>
+                                          <strong>Road:</strong> ${roadName}<br>
+                                          <strong>Type:</strong> Average Speed (End)`;
+
+                  // Draw a line to represent the segment:
+                  const polyline = L.polyline([[fromLat, fromLon], [toLat, toLon]], { color: 'green' }).addTo(map);
+                  polyline.bindPopup(`<strong>${plName}</strong><br>${roadName} - ${administrativeArea}<br>Average Speed Segment`);
+
+                  // Markers at each end with green icon
+                  const fromMarker = L.marker([fromLat, fromLon], { icon: greenIcon }).addTo(map);
+                  fromMarker.bindPopup(popupContentFrom);
+
+                  const toMarker = L.marker([toLat, toLon], { icon: greenIcon }).addTo(map);
+                  toMarker.bindPopup(popupContentTo);
+                }
+              } else if (setName === "CabinasCinemometro") {
+                // Fixed speed camera cabins (points)
+                for (let j = 0; j < predefinedLocations.length; j++) {
+                  const pl = predefinedLocations[j];
+
+                  // Extract predefinedLocationName
+                  const plNameEl = pl.getElementsByTagName("_0:predefinedLocationName")[0];
+                  let plName = "Speed Camera Cabin";
+                  if (plNameEl) {
+                    const valEl = plNameEl.getElementsByTagName("_0:value")[0];
+                    if (valEl) plName = valEl.textContent.trim();
+                  }
+
+                  // Coordinates
+                  const pointCoords = pl.getElementsByTagName("_0:pointCoordinates")[0];
+                  if (!pointCoords) continue;
+                  const latEl = pointCoords.getElementsByTagName("_0:latitude")[0];
+                  const lonEl = pointCoords.getElementsByTagName("_0:longitude")[0];
+                  if (!latEl || !lonEl) continue;
+
+                  const lat = parseFloat(latEl.textContent.trim());
+                  const lon = parseFloat(lonEl.textContent.trim());
+                  if (isNaN(lat) || isNaN(lon)) continue;
+
+                  // Extract additional data from _0:referencePoint
+                  const referencePoint = pl.getElementsByTagName("_0:referencePoint")[0];
+                  let administrativeArea = '', roadName = '';
+                  if (referencePoint) {
+                    const details = extractReferenceDetails(referencePoint);
+                    administrativeArea = details.administrativeArea;
+                    roadName = details.roadName;
+                  }
+
+                  const popupContent = `<strong>${plName}</strong><br>
+                                        <strong>Administrative Area:</strong> ${administrativeArea}<br>
+                                        <strong>Road:</strong> ${roadName}<br>
+                                        <strong>Type:</strong> Fixed Speed Camera`;
+
+                  const marker = L.marker([lat, lon], { icon: redIcon }).addTo(map);
+                  marker.bindPopup(popupContent);
+                }
+              }
+            }
+          })
+          .catch(error => {
+            console.error("Error fetching speed camera data:", error);
+          });
+      }
     });
   </script>
 </body>
-
 </html>
