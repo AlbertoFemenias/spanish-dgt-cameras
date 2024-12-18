@@ -127,7 +127,8 @@
       // Load cameras
       loadCameras(cameraUrl, 'cameras_backup.json')
         .then(data => {
-          data.camaras.forEach(camera => {
+          const cameras = data.camaras;
+          cameras.forEach((camera, index) => {
             const { latitud, longitud, imagen, carretera, provincia } = camera;
             if (!latitud || !longitud) return; // skip if coords missing
 
@@ -139,32 +140,39 @@
 
             // Create popup content
             const popupContent = `
-          <div class="camera-popup">
-            <img src="${imagen}" alt="Camera Image"/>
-            <div class="camera-details">
-              <p>
-                <a href="${imagen}" target="_blank" class="open-image-btn">Open image in new tab ⇗</a><br>
-                <strong>Coordinates:</strong> ${latitud}, ${longitud}<br>
-                <strong>Road:</strong> ${carretera}<br>
-                <strong>Province:</strong> ${provinceMapping[provincia] || 'Unknown'}
-              </p>
-            </div>
-          </div>
-        `;
+              <div class="camera-popup">
+                <img src="${imagen}" alt="Camera Image"/>
+                <div class="camera-details">
+                  <p>
+                    <a href="${imagen}" target="_blank" class="open-image-btn">Open image in new tab ⇗</a><br>
+                    <strong>Coordinates:</strong> ${latitud}, ${longitud}<br>
+                    <strong>Road:</strong> ${carretera}<br>
+                    <strong>Province:</strong> ${provinceMapping[provincia] || 'Unknown'}
+                  </p>
+                </div>
+              </div>
+            `;
 
             marker.bindPopup(popupContent);
+
+            // Check if this is the last camera to process
+            if (index === cameras.length - 1) {
+              // Remove the loading indicator once all markers are added
+              const loadingDiv = document.getElementById('loading');
+              if (loadingDiv) {
+                loadingDiv.style.display = 'none';
+              }
+            }
           });
         })
         .catch(error => {
           console.error('Error fetching camera data:', error);
-        })
-        .finally(() => {
-          // Remove the loading indicator once data is loaded (or attempt finished)
           const loadingDiv = document.getElementById('loading');
           if (loadingDiv) {
-            loadingDiv.style.display = 'none';
+            loadingDiv.style.display = 'none'; // Ensure loading message is also removed on error
           }
         });
+  
     });
   </script>
 </body>
